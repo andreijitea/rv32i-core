@@ -15,6 +15,13 @@ module cpu (
     wire [31:0] mem_read_data;
     wire [31:0] result_wb;
     wire [2:0] data_mem_mode;
+    
+    // Memory controller to data memory wires
+    wire [31:0] dm_addr_wire;
+    wire [31:0] dm_write_wire;
+    wire [31:0] dm_read_wire;
+    wire dm_we_wire;
+    wire [2:0] dm_mode_wire;
 
     // Control signals
     wire [1:0] pc_src_ctrl;
@@ -25,6 +32,7 @@ module cpu (
     wire alu_a_ctrl;
     wire [2:0] imm_src_ctrl;
     wire reg_write_ctrl;
+    wire mem_read_ctrl;
 
     // Controller instantiation
     controller ctrl_inst (
@@ -42,7 +50,8 @@ module cpu (
         .alu_b_src(alu_b_ctrl),
         .imm_src(imm_src_ctrl),
         .reg_write(reg_write_ctrl),
-        .data_mem_mode(data_mem_mode)
+        .data_mem_mode(data_mem_mode),
+        .mem_read(mem_read_ctrl)
     );
 
     program_counter pc_inst (
@@ -120,14 +129,31 @@ module cpu (
         .carry(carry_flag)
     );
 
-    data_memory dm_inst (
+    memory_controller mem_ctrl_inst (
         .clk(clk),
         .rst(rst),
         .address(alu_result),
         .write_data(rs2_data),
         .read_data(mem_read_data),
         .we(mem_write_ctrl),
-        .mode(data_mem_mode)
+        .mode(data_mem_mode),
+        .re(mem_read_ctrl),
+        
+        .dm_address(dm_addr_wire),
+        .dm_write_data(dm_write_wire),
+        .dm_read_data(dm_read_wire),
+        .dm_we(dm_we_wire),
+        .dm_mode(dm_mode_wire)
+    );
+
+    data_memory dm_inst (
+        .clk(clk),
+        .rst(rst),
+        .address(dm_addr_wire),
+        .write_data(dm_write_wire),
+        .read_data(dm_read_wire),
+        .we(dm_we_wire),
+        .mode(dm_mode_wire)
     );
 
     mux4 wb_mux (

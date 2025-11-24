@@ -15,7 +15,8 @@ module controller (
     output reg alu_b_src,
     output reg [2:0] imm_src,
     output reg reg_write,
-    output reg [2:0] data_mem_mode
+    output reg [2:0] data_mem_mode,
+    output reg mem_read
 );
 
     // Opcode definitions
@@ -46,6 +47,7 @@ module controller (
         branch = 1'b0;
         branch_taken = 1'b0;
         data_mem_mode = `DM_LW;
+        mem_read = 1'b0;
 
         case (opcode)
             OP_R_TYPE: begin
@@ -103,6 +105,7 @@ module controller (
                 result_src = 2'b01;  // Memory data
                 imm_src = `IMM_I_TYPE;
                 alu_control = `ALU_ADD;  // Address = rs1 + imm
+                mem_read = 1'b1;
 
                 case (funct3)
                     3'b000: data_mem_mode = `DM_LB; // LB

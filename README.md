@@ -30,6 +30,27 @@ This project implements the base RISC-V 32-bit integer instruction set (RV32I) u
 - **Data Memory**: 1KB byte-addressable RAM with byte/halfword/word access
 - **Control Unit**: Fully decoded FSM-based controller
 - **Immediate Extender**: Supports all 6 RISC-V immediate formats (I, S, B, U, J, R)
+- **Memory Controller**: Address decoder and bus interface for data memory and future peripherals
+
+### Memory Architecture
+
+This processor uses a **Harvard Architecture** with unified address space:
+**Note**: The instruction and data memories are separate modules that share the same address space.
+**Note 2**: The sizes of instruction and data memories can be adjusted in the future.
+
+```
+Memory Map:
+┌─────────────────────────────────────┐
+│ 0x00000000 - 0x000003FF             │
+│ Instruction Memory (ROM, 1KB)       │
+├─────────────────────────────────────┤
+│ 0x00000400 - 0x000007FF             │
+│ Data Memory (RAM, 1KB)              │
+├─────────────────────────────────────┤
+│ 0x00000800+                         │
+│ Peripherals (Reserved)              │
+└─────────────────────────────────────┘
+```
 
 ### Key Design Features
 
@@ -38,6 +59,7 @@ This project implements the base RISC-V 32-bit integer instruction set (RV32I) u
 - **Clean modular design**: Separated datapath and control logic
 - **PC multiplexing**: 4-way mux supporting sequential execution, branches, and jumps (JAL/JALR)
 - **ALU input multiplexing**: Supports AUIPC by selecting PC as ALU input
+- **Memory-mapped architecture**: Prepared for future peripheral integration
 
 
 ## Building and Running

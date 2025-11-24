@@ -11,7 +11,8 @@ SRC_FILES = $(SRC_DIR)/cpu.v \
 			$(SRC_DIR)/controller.v \
 			$(SRC_DIR)/adder.v \
 			$(SRC_DIR)/mux2.v \
-			$(SRC_DIR)/mux4.v
+			$(SRC_DIR)/mux4.v \
+			$(SRC_DIR)/memory_controller.v
 
 TB_FILE = $(SIM_DIR)/cpu_tb.v
 OUT = $(SIM_DIR)/cpu_tb

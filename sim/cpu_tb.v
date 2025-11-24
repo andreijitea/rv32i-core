@@ -28,6 +28,19 @@ module cpu_tb;
 
         // Run for 200 clock cycles
         #2000;
+
+        // Current instructions in instructions.hex:
+        // addi x1, x0, 30
+        // addi x2, x0, 23
+        // beq x1, x2, br_equal
+        // bge x1, x2, br_greater
+        // sw x1, 0x400(x0)
+        // 
+        // br_greater:
+        // sub x3, x0, x1
+        // 
+        // br_equal:
+        // sw x2, 0x400(x0)
         
         $display("\nFinal Register State:");
         $display("x1 = %h", dut.rf_inst.registers[1]);
@@ -38,11 +51,11 @@ module cpu_tb;
 
         // Display first 5 words of data memory
         $display("\nData Memory (first 5 words):");
-        $display("Addr 0x00: %h", {dut.dm_inst.mem[3], dut.dm_inst.mem[2], dut.dm_inst.mem[1], dut.dm_inst.mem[0]});
-        $display("Addr 0x04: %h", {dut.dm_inst.mem[7], dut.dm_inst.mem[6], dut.dm_inst.mem[5], dut.dm_inst.mem[4]});
-        $display("Addr 0x08: %h", {dut.dm_inst.mem[11], dut.dm_inst.mem[10], dut.dm_inst.mem[9], dut.dm_inst.mem[8]});
-        $display("Addr 0x0C: %h", {dut.dm_inst.mem[15], dut.dm_inst.mem[14], dut.dm_inst.mem[13], dut.dm_inst.mem[12]});
-        $display("Addr 0x10: %h", {dut.dm_inst.mem[19], dut.dm_inst.mem[18], dut.dm_inst.mem[17], dut.dm_inst.mem[16]});
+        $display("Addr 0x0400: %h", dut.dm_inst.mem[0]);
+        $display("Addr 0x0404: %h", dut.dm_inst.mem[1]);
+        $display("Addr 0x0408: %h", dut.dm_inst.mem[2]);
+        $display("Addr 0x040C: %h", dut.dm_inst.mem[3]);
+        $display("Addr 0x0410: %h", dut.dm_inst.mem[4]);
         
         $finish;
     end

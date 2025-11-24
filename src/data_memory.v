@@ -10,8 +10,15 @@ module data_memory (
     input wire [2:0] mode
 );
 
-    // 1KB of data memory (256 words)
-    reg [7:0] mem [0:1023];
+    // 1KB Data Memory
+    reg [31:0] mem [0:255];
+
+    wire [1:0] byte_offset;  // Byte offset within the word
+    wire [7:0] word_index;  // Word index in memory
+
+    assign byte_offset = address[1:0];
+    assign word_index = address[9:2];
+
 
     // Write Logic (Synchronous)
     always @(posedge clk) begin
@@ -19,26 +26,27 @@ module data_memory (
             case (mode)
                 `DM_SB: begin
                     // Store Byte
-                    mem[address] <= write_data[7:0];
+                    case (byte_offset)
+                        2'b00: mem[word_index][7:0]   <= write_data[7:0];
+                        2'b01: mem[word_index][15:8]  <= write_data[7:0];
+                        2'b10: mem[word_index][23:16] <= write_data[7:0];
+                        2'b11: mem[word_index][31:24] <= write_data[7:0];
+                    endcase
                 end
                 `DM_SH: begin
                     // Store Halfword
-                    mem[address] <= write_data[7:0];
-                    mem[address + 1] <= write_data[15:8];
+                    case (byte_offset[1])
+                        1'b0: mem[word_index][15:0]  <= write_data[15:0];
+                        1'b1: mem[word_index][31:16] <= write_data[15:0];
+                    endcase
                 end
                 `DM_SW: begin
                     // Store Word
-                    mem[address] <= write_data[7:0];
-                    mem[address + 1] <= write_data[15:8];
-                    mem[address + 2] <= write_data[23:16];
-                    mem[address + 3] <= write_data[31:24];
+                    mem[word_index] <= write_data;
                 end
                 default: begin
                     // Default to Store Word
-                    mem[address] <= write_data[7:0];
-                    mem[address + 1] <= write_data[15:8];
-                    mem[address + 2] <= write_data[23:16];
-                    mem[address + 3] <= write_data[31:24];
+                    mem[word_index] <= write_data;
                 end
             endcase
         end
@@ -53,27 +61,43 @@ module data_memory (
             case (mode)
                 `DM_LB: begin
                     // Load Byte (sign-extended)
-                    read_data = {{24{mem[address][7]}}, mem[address]};
+                    case (byte_offset)
+                        2'b00: read_data = {{24{mem[word_index][7]}}, mem[word_index][7:0]};
+                        2'b01: read_data = {{24{mem[word_index][15]}}, mem[word_index][15:8]};
+                        2'b10: read_data = {{24{mem[word_index][23]}}, mem[word_index][23:16]};
+                        2'b11: read_data = {{24{mem[word_index][31]}}, mem[word_index][31:24]};
+                    endcase
                 end
                 `DM_LH: begin
                     // Load Halfword (sign-extended)
-                    read_data = {{16{mem[address + 1][7]}}, mem[address + 1], mem[address]};
+                    case (byte_offset[1])
+                        1'b0: read_data = {{16{mem[word_index][15]}}, mem[word_index][15:0]};
+                        1'b1: read_data = {{16{mem[word_index][31]}}, mem[word_index][31:16]};
+                    endcase
                 end
                 `DM_LW: begin
                     // Load Word
-                    read_data = {mem[address + 3], mem[address + 2], mem[address + 1], mem[address]};
+                    read_data = mem[word_index];
                 end
                 `DM_LBU: begin
                     // Load Byte Unsigned (zero-extended)
-                    read_data = {24'b0, mem[address]};
+                    case (byte_offset)
+                        2'b00: read_data = {24'b0, mem[word_index][7:0]};
+                        2'b01: read_data = {24'b0, mem[word_index][15:8]};
+                        2'b10: read_data = {24'b0, mem[word_index][23:16]};
+                        2'b11: read_data = {24'b0, mem[word_index][31:24]};
+                    endcase
                 end
                 `DM_LHU: begin
                     // Load Halfword Unsigned (zero-extended)
-                    read_data = {16'b0, mem[address + 1], mem[address]};
+                    case (byte_offset[1])
+                        1'b0: read_data = {16'b0, mem[word_index][15:0]};
+                        1'b1: read_data = {16'b0, mem[word_index][31:16]};
+                    endcase
                 end
                 default: begin
                     // Default to Load Word
-                    read_data = {mem[address + 3], mem[address + 2], mem[address + 1], mem[address]};
+                    read_data = mem[word_index];
                 end
             endcase
         end

@@ -1,10 +1,10 @@
-# RV32I Single-Cycle Processor
+# RV32I Core Processor
 
-A complete implementation of a 32-bit RISC-V (RV32I) single-cycle processor in Verilog. So far, it supports 37 instructions from the RV32I base integer instruction set. In the future, more instructions and features may be added.
+A complete implementation of a 32-bit RISC-V (RV32I) multicycle processor in Verilog. Supports 37 instructions from the RV32I base integer instruction set. Originally started as a single-cycle design, it was upgraded to a multicycle architecture to support synchronous ROM/RAM.
 
 ## Overview
 
-This project implements the base RISC-V 32-bit integer instruction set (RV32I) using a single-cycle microarchitecture. The processor executes one instruction per clock cycle and includes all necessary datapath components and control logic.
+This project implements the base RISC-V 32-bit integer instruction set (RV32I) using a multicycle microarchitecture. Unlike single-cycle designs, instructions take multiple clock cycles to complete, allowing the use of synchronous memories (realistic for FPGA/ASIC implementation) and resource sharing between stages.
 
 **Note**: This is an educational implementation designed for learning computer architecture and digital design. Not intended for production use.
 
@@ -21,45 +21,54 @@ This project implements the base RISC-V 32-bit integer instruction set (RV32I) u
 - **Control Flow**: BEQ, BNE, BLT, BGE, BLTU, BGEU, JAL, JALR
 - **Upper Immediate**: LUI, AUIPC
 
+### Multicycle Architecture
+
+The processor uses a FSM controller with the following states:
+
+| State | Description |
+|-------|-------------|
+| FETCH | Set up ROM address (PC) |
+| FETCH2 | Capture instruction from synchronous ROM into IR |
+| DECODE | Decode instruction, read registers, compute immediate |
+| EXECUTE | Perform ALU operation, compute branch/jump targets, update PC |
+| MEMORY | Memory access for load/store instructions |
+| MEMORY2 | Capture load data from synchronous RAM into MDR |
+| WRITEBACK | Write result back to register file |
+
+### Cycle Counts by Instruction Type
+
+| Instruction Type | Cycles | States Used |
+|-----------------|--------|-------------|
+| R-type (ADD, SUB, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+| I-type ALU (ADDI, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+| Load (LW, LB, etc.) | 7 | FETCH → FETCH2 → DECODE → EXECUTE → MEMORY → MEMORY2 → WRITEBACK |
+| Store (SW, SB, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → MEMORY |
+| Branch (BEQ, BNE, etc.) | 4 | FETCH → FETCH2 → DECODE → EXECUTE |
+| JAL | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+| JALR | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+| LUI, AUIPC | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+
 ### Architecture Components
 
-- **Program Counter (PC)**: 32-bit program counter with reset capability
-- **Instruction Memory**: 256-word instruction ROM with hex file loading
+- **Program Counter (PC)**: 32-bit program counter with write-enable gating
+- **Instruction Memory**: 4KB synchronous ROM with hex file loading
+- **Instruction Register (IR)**: Latches instruction for multi-cycle decoding
 - **Register File**: 32 general-purpose registers (x0-x31), x0 hardwired to zero
 - **ALU**: 10 operations with zero, negative, and carry flag generation
-- **Data Memory**: 1KB byte-addressable RAM with byte/halfword/word access
-- **Control Unit**: Fully decoded FSM-based controller
+- **Data Memory**: 4KB synchronous RAM with byte/halfword/word access
+- **Memory Data Register (MDR)**: Latches data from synchronous RAM
+- **Controller FSM**: Multi-state controller generating all control signals
 - **Immediate Extender**: Supports all 6 RISC-V immediate formats (I, S, B, U, J, R)
-- **Memory Controller**: Address decoder and bus interface for data memory and future peripherals
-
-### Memory Architecture
-
-This processor uses a **Harvard Architecture** with unified address space:
-**Note**: The instruction and data memories are separate modules that share the same address space.
-**Note 2**: The sizes of instruction and data memories can be adjusted in the future.
-
-```
-Memory Map:
-┌─────────────────────────────────────┐
-│ 0x00000000 - 0x000003FF             │
-│ Instruction Memory (ROM, 1KB)       │
-├─────────────────────────────────────┤
-│ 0x00000400 - 0x000007FF             │
-│ Data Memory (RAM, 1KB)              │
-├─────────────────────────────────────┤
-│ 0x00000800+                         │
-│ Peripherals (Reserved)              │
-└─────────────────────────────────────┘
-```
+- **Datapath Registers**: `reg32b` modules for latching values between pipeline stages (regA, regB, ALUOut, ImmOut, OldPC)
 
 ### Key Design Features
 
+- **Synchronous memories**: Compatible with FPGA block RAM and realistic ASIC memories
+- **Clean datapath**: All sequential elements use dedicated `reg32b` modules with write-enable control
 - **Flag-based branching**: Uses zero, negative, and carry flags for efficient branch comparison
 - **Flexible memory access**: Supports signed/unsigned byte, halfword, and word operations
-- **Clean modular design**: Separated datapath and control logic
-- **PC multiplexing**: 4-way mux supporting sequential execution, branches, and jumps (JAL/JALR)
-- **ALU input multiplexing**: Supports AUIPC by selecting PC as ALU input
-- **Memory-mapped architecture**: Prepared for future peripheral integration
+- **Modular design**: Separated datapath and control logic
+- **PC latching**: Old PC is saved during DECODE for correct JAL/JALR return address calculation
 
 
 ## Building and Running
@@ -75,13 +84,16 @@ Memory Map:
 # Run simulation
 make simulate
 
+# View waveforms
+make wave
+
 # Clean build artifacts
 make clean
 ```
 
 ## Testing
 
-The current testbench (`sim/cpu_tb.v`) validates basic functionality:
+The current testbench (`sim/soc_tb.v`) validates basic functionality:
 - Arithmetic and logical operations
 - Memory load/store operations
 - Data memory persistence

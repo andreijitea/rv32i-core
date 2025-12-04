@@ -75,13 +75,18 @@ The processor uses a FSM controller with the following states:
 
 ### Prerequisites
 
-- Icarus Verilog (iverilog) - Verilog simulator
-- GTKWave (optional) - Waveform viewer
+- Verilator (recommended) - converts Verilog to a fast C++ model and builds a C++ testbench
+- GCC / g++ - to compile the generated model and testbench
+- GTKWave (optional) - waveform viewer
 
-### Quick Start
+Note: I updated the repository to use Verilator instead of Icarus Verilog for simulation.
+
+### Quick Start (Verilator)
+
+From the project root run:
 
 ```bash
-# Run simulation
+# Generate, build and run the Verilator C++ testbench
 make simulate
 
 # View waveforms

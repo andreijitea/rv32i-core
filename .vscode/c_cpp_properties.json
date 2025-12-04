@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/sim/obj_dir",
+                "${workspaceFolder}/sim",
+                "${workspaceFolder}/src",
+                "/usr/share/verilator/include",
+                "/usr/share/verilator/include/vltstd"
+            ],
+            "defines": [
+                "VM_TRACE=1"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/sim/obj_dir",
+                    "${workspaceFolder}/src",
+                    "/usr/share/verilator/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}

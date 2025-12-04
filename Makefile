@@ -1,6 +1,8 @@
 # Verilog source files
 SRC_DIR = src
 SIM_DIR = sim
+TOP_MODULE = soc_multicycle
+
 SRC_FILES = $(SRC_DIR)/soc_multicycle.v \
 			$(SRC_DIR)/cpu_multicycle.v \
 			$(SRC_DIR)/program_counter.v \
@@ -17,17 +19,29 @@ SRC_FILES = $(SRC_DIR)/soc_multicycle.v \
 			$(SRC_DIR)/mux2.v \
 			$(SRC_DIR)/mux4.v
 
-TB_FILE = $(SIM_DIR)/soc_tb.v
-OUT = $(SIM_DIR)/soc_tb
+TB_CPP = $(SIM_DIR)/soc_tb.cpp
+OBJ_DIR = $(SIM_DIR)/obj_dir
 VCD = $(SIM_DIR)/soc_tb.vcd
+
+# Absolute paths
+SRCS_ABS := $(abspath $(SRC_FILES))
+TB_ABS   := $(abspath $(TB_CPP))
 
 # Default target
 all: simulate
 
+# Verilate and build
+$(OBJ_DIR)/V$(TOP_MODULE): $(SRC_FILES) $(TB_CPP)
+	verilator --cc --exe --build -j $(shell nproc) \
+		--top-module $(TOP_MODULE) \
+		--Mdir $(OBJ_DIR) \
+		--trace \
+		-I$(abspath $(SRC_DIR)) \
+		$(SRCS_ABS) $(TB_ABS)
+
 # Compile and simulate
-simulate: $(SRC_FILES) $(TB_FILE)
-	iverilog -g2012 -o $(OUT) $(SRC_FILES) $(TB_FILE) -I$(SRC_DIR)
-	cd $(SIM_DIR) && vvp soc_tb
+simulate: $(OBJ_DIR)/V$(TOP_MODULE)
+	cd $(SIM_DIR) && ./obj_dir/V$(TOP_MODULE)
 
 # Open waveform viewer (requires GTKWave)
 wave: $(VCD)
@@ -35,6 +49,6 @@ wave: $(VCD)
 
 # Clean
 clean:
-	rm -f $(OUT) $(VCD)
+	rm -rf $(OBJ_DIR) $(VCD)
 
 .PHONY: all simulate wave clean

@@ -1,2 +1,5 @@
-# Compiled simulation file
-sim/cpu_tb
+# Verilator output directory
+sim/obj_dir/
+
+# VCD waveform files
+sim/*.vcd

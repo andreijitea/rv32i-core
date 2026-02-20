@@ -18,7 +18,14 @@ module register_file (
 
     // Write port
     always @(posedge clk or posedge rst) begin
-        if (rd_we && rd_addr != 5'b0) begin
+        if (rst) begin
+            // Reset all registers to 0
+            integer i;
+            for (i = 0; i < 32; i = i + 1) begin
+                registers[i] <= 32'b0;
+            end
+        end else if (rd_we && rd_addr != 5'b0) begin
+            // Write to register file (except x0)
             registers[rd_addr] <= rd_data;
         end
     end

@@ -20,6 +20,7 @@ SRC_FILES = $(SRC_DIR)/soc_multicycle.v \
 			$(SRC_DIR)/mux4.v
 
 TB_CPP = $(SIM_DIR)/soc_tb.cpp
+TB_HEADERS = $(SIM_DIR)/instruction_tests.hpp
 OBJ_DIR = $(SIM_DIR)/obj_dir
 VCD = $(SIM_DIR)/soc_tb.vcd
 
@@ -31,7 +32,7 @@ TB_ABS   := $(abspath $(TB_CPP))
 all: simulate
 
 # Verilate and build
-$(OBJ_DIR)/V$(TOP_MODULE): $(SRC_FILES) $(TB_CPP)
+$(OBJ_DIR)/V$(TOP_MODULE): $(SRC_FILES) $(TB_CPP) $(TB_HEADERS)
 	verilator --cc --exe --build -j $(shell nproc) \
 		--top-module $(TOP_MODULE) \
 		--Mdir $(OBJ_DIR) \

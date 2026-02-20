@@ -44,7 +44,15 @@ module controller_multicycle (
     output reg o_decode_we,
 
     // Execute latch control signal
-    output reg o_execute_we
+    output reg o_execute_we,
+
+    // ROM interface signals
+    output wire o_rom_req,
+    input wire i_rom_ready,
+
+    // RAM interface signals
+    output wire o_ram_req,
+    input wire i_ram_ready
 );
 
     // Opcode definitions
@@ -60,11 +68,11 @@ module controller_multicycle (
 
     // Multicycle states
     localparam FETCH    = 3'b000;
-    localparam FETCH2  = 3'b101; // for synchronous IMEM
+    localparam FETCH_WAIT  = 3'b101; // for synchronous IMEM
     localparam DECODE   = 3'b001;
     localparam EXECUTE  = 3'b010;
     localparam MEMORY   = 3'b011;
-    localparam MEMORY2  = 3'b110; // for synchronous DMEM (needed for loads)
+    localparam MEMORY_WAIT  = 3'b110; // for synchronous DMEM (needed for loads)
     localparam WRITEBACK= 3'b100;
 
     reg [2:0] state, next_state;
@@ -104,6 +112,9 @@ module controller_multicycle (
         branch_taken = 1'b0;
         debug_branch = 3'b000;
 
+        o_rom_req = 1'b0;
+        o_ram_req = 1'b0;
+
         next_state = FETCH; // default next state
 
         case (state)
@@ -111,16 +122,22 @@ module controller_multicycle (
             FETCH: begin
                 // For synchronous IMEM we just set up for next cycle
                 o_pc_sel = 2'b00; // PC + 4
+                o_rom_req = 1'b1; // Request instruction fetch
             
-                next_state = FETCH2;
+                next_state = FETCH_WAIT;
             end
 
-            FETCH2: begin
+            FETCH_WAIT: begin
                 // Synchronous IMEM: capture instruction into IR
-                o_ir_we  = 1'b1;
+                o_rom_req = 1'b1; // Keep request asserted until ready
+                if (i_rom_ready) begin
+                    o_ir_we = 1'b1; // Load instruction into IR
+                    next_state = DECODE;
+                end else begin
+                    o_ir_we = 1'b0; // Wait until instruction is ready
+                    next_state = FETCH_WAIT;
+                end
                 o_pc_sel = 2'b00; // PC + 4
-
-                next_state = DECODE;
             end
 
             //------------------------------------------------------------------
@@ -210,15 +227,6 @@ module controller_multicycle (
                         o_pc_we = 1'b1;     // update PC
                         o_pc_sel = 2'b00;   // PC + 4
 
-                        case (i_funct3)
-                            3'b000: o_ram_mode = `DM_LB;
-                            3'b001: o_ram_mode = `DM_LH;
-                            3'b010: o_ram_mode = `DM_LW;
-                            3'b100: o_ram_mode = `DM_LBU;
-                            3'b101: o_ram_mode = `DM_LHU;
-                            default: o_ram_mode = `DM_LW;
-                        endcase
-
                         next_state = MEMORY;
                     end
 
@@ -229,13 +237,6 @@ module controller_multicycle (
                         o_alu_ctrl  = `ALU_ADD; // address calc
                         o_pc_we = 1'b1;     // update PC
                         o_pc_sel = 2'b00;   // PC + 4
-
-                        case (i_funct3)
-                            3'b000: o_ram_mode = `DM_SB;
-                            3'b001: o_ram_mode = `DM_SH;
-                            3'b010: o_ram_mode = `DM_SW;
-                            default: o_ram_mode = `DM_SW;
-                        endcase
 
                         next_state = MEMORY;
                     end
@@ -347,26 +348,62 @@ module controller_multicycle (
 
             //------------------------------------------------------------------
             MEMORY: begin
+                o_ram_req = 1'b1; // Request memory access (read or write)
+
                 // Memory state: for loads do read (capture into MDR), for stores do write
                 if (i_opcode == OP_LOAD) begin
-                    // For synchronous DMEM, we need an extra cycle to capture load data
-                    next_state = MEMORY2;
+                    // Assert ram_mode
+                    case (i_funct3)
+                        3'b000: o_ram_mode = `DM_LB;
+                        3'b001: o_ram_mode = `DM_LH;
+                        3'b010: o_ram_mode = `DM_LW;
+                        3'b100: o_ram_mode = `DM_LBU;
+                        3'b101: o_ram_mode = `DM_LHU;
+                        default: o_ram_mode = `DM_LW;
+                    endcase
+
+                    next_state = MEMORY_WAIT;
                 end else if (i_opcode == OP_STORE) begin
-                    // Store: enable RAM write
+                    // Store: enable RAM write, assert mode
                     o_ram_we = 1'b1;
 
-                    next_state = FETCH;
+                    case (i_funct3)
+                        3'b000: o_ram_mode = `DM_SB;
+                        3'b001: o_ram_mode = `DM_SH;
+                        3'b010: o_ram_mode = `DM_SW;
+                        default: o_ram_mode = `DM_SW;
+                    endcase
+
+                    if (i_ram_ready) begin
+                        next_state = FETCH; // write done, move on
+                    end else begin
+                        next_state = MEMORY; // wait for memory to accept write
+                    end
                 end else begin
                     // Shouldn't normally be here for other opcodes
                     next_state = FETCH;
                 end
             end
 
-            MEMORY2: begin
-                // For synchronous DMEM, we need an extra cycle to capture load data
-                o_mdr_we = 1'b1;
-
-                next_state = WRITEBACK;
+            MEMORY_WAIT: begin
+                o_ram_req = 1'b1; // Keep request asserted until ready
+                // Re-assert ram_mode
+                case (i_funct3)
+                    3'b000: o_ram_mode = `DM_LB;
+                    3'b001: o_ram_mode = `DM_LH;
+                    3'b010: o_ram_mode = `DM_LW;
+                    3'b100: o_ram_mode = `DM_LBU;
+                    3'b101: o_ram_mode = `DM_LHU;
+                    default: o_ram_mode = `DM_LW;
+                endcase
+                
+                if (i_ram_ready) begin
+                    o_mdr_we = 1'b1; // Capture memory read data into MDR
+                    next_state = WRITEBACK;
+                end else begin
+                    o_mdr_we = 1'b0; // Wait until data is ready
+                    next_state = MEMORY_WAIT;
+                end
             end
 
             //------------------------------------------------------------------

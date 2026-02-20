@@ -1,79 +1,76 @@
 #include <iostream>
-#include <iomanip>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 #include "Vsoc_multicycle.h"
-
-#define MAX_SIM_TIME 200
-#define CLK_PERIOD 10
-
-vluint64_t sim_time = 0;
+#include "instruction_tests.hpp"
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
-    
-    // Create DUT instance
-    Vsoc_multicycle* dut = new Vsoc_multicycle;
-    
-    // Enable tracing
     Verilated::traceEverOn(true);
+
+    InstructionTest tester;
+
     VerilatedVcdC* tfp = new VerilatedVcdC;
-    dut->trace(tfp, 99);
+    tester.dut->trace(tfp, 99);
     tfp->open("soc_tb.vcd");
-    
-    std::cout << "Starting multicycle SOC test..." << std::endl;
-    
-    // Reset for 1 clock cycle
-    dut->rst = 1;
-    dut->clk = 1;
-    dut->eval();
-    tfp->dump(sim_time++);
+    tester.tfp = tfp;
 
-    dut->clk = 0;
-    dut->eval();
-    tfp->dump(sim_time++);
+    std::cout << "=== RV32I Instruction Tests ===\n\n";
 
-    dut->rst = 0;
-    dut->clk = 1;
-    dut->eval();
-    tfp->dump(sim_time++);
+    test_lui(tester);
+    test_auipc(tester);
 
-    // Main simulation loop
-    while (sim_time < MAX_SIM_TIME) {
-        // Toggle clock
-        dut->clk = 0;
-        dut->eval();
-        tfp->dump(sim_time++);
+    test_addi(tester);
+    test_slti(tester);
+    test_sltiu(tester);
+    test_xori(tester);
+    test_ori(tester);
+    test_andi(tester);
+    test_slli(tester);
+    test_srli(tester);
+    test_srai(tester);
 
-        dut->clk = 1;
-        dut->eval();
-        tfp->dump(sim_time++);
-    }
-    
-    std::cout << "Simulation finished at time " << sim_time << std::endl;
-    std::cout << "First 5 register values:" << std::endl;
-    for (int i = 1; i <= 5; i++) {
-        std::cout << "R" << i << ": 0x" 
-                  << std::hex << std::setw(8) << std::setfill('0') 
-                  << dut->soc_multicycle__DOT__cpu_inst__DOT__regfile_inst__DOT__registers[i] 
-                  << std::dec << std::endl;
-    }
+    test_add(tester);
+    test_sub(tester);
+    test_sll(tester);
+    test_slt(tester);
+    test_sltu(tester);
+    test_xor(tester);
+    test_srl(tester);
+    test_sra(tester);
+    test_or(tester);
+    test_and(tester);
 
-    std::cout << "First 10 memory locations:" << std::endl;
-    for (int i = 0; i < 10; i++) {
-        std::cout << "Mem[" << i << "]: 0x" 
-                  << std::hex << std::setw(8) << std::setfill('0') 
-                  << dut->soc_multicycle__DOT__ram_inst__DOT__ram_mem[i] 
-                  << std::dec << std::endl;
-    }
-    
-    // Final evaluation
-    dut->eval();
-    
-    // Cleanup
+    test_lb(tester);
+    test_lh(tester);
+    test_lw(tester);
+    test_lbu(tester);
+    test_lhu(tester);
+
+    test_sb(tester);
+    test_sh(tester);
+    test_sw(tester);
+
+    test_jal(tester);
+    test_jalr(tester);
+
+    test_beq(tester);
+    test_bne(tester);
+    test_blt(tester);
+    test_bge(tester);
+    test_bltu(tester);
+    test_bgeu(tester);
+
+    test_fibo(tester);
+
+    tester.print_results();
+
     tfp->close();
     delete tfp;
-    delete dut;
-    
-    return 0;
+
+    // Return non-zero if any test failed
+    int failed = 0;
+    for (const auto& r : tester.results)
+        if (!r.passed) failed++;
+    return failed;
 }

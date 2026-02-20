@@ -1,6 +1,6 @@
 # RV32I Core Processor
 
-A complete implementation of a 32-bit RISC-V (RV32I) multicycle processor in Verilog. Supports 37 instructions from the RV32I base integer instruction set. Originally started as a single-cycle design, it was upgraded to a multicycle architecture to support synchronous ROM/RAM.
+A complete implementation of a 32-bit RISC-V (RV32I) multicycle processor in Verilog. Supports 37 instructions from the RV32I base integer instruction set. Originally started as a single-cycle design, I upgraded it to a multicycle architecture to be able to support synchronous ROM/RAM with variable latency (default configuration is 1 cycle for both). This design uses stall states to handle memory access latency.
 
 ## Overview
 
@@ -28,42 +28,44 @@ The processor uses a FSM controller with the following states:
 | State | Description |
 |-------|-------------|
 | FETCH | Set up ROM address (PC) |
-| FETCH2 | Capture instruction from synchronous ROM into IR |
+| FETCH_WAIT | Capture instruction from synchronous ROM into IR |
 | DECODE | Decode instruction, read registers, compute immediate |
 | EXECUTE | Perform ALU operation, compute branch/jump targets, update PC |
 | MEMORY | Memory access for load/store instructions |
-| MEMORY2 | Capture load data from synchronous RAM into MDR |
+| MEMORY_WAIT | Capture load data from synchronous RAM into MDR |
 | WRITEBACK | Write result back to register file |
 
 ### Cycle Counts by Instruction Type
 
 | Instruction Type | Cycles | States Used |
 |-----------------|--------|-------------|
-| R-type (ADD, SUB, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
-| I-type ALU (ADDI, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
-| Load (LW, LB, etc.) | 7 | FETCH → FETCH2 → DECODE → EXECUTE → MEMORY → MEMORY2 → WRITEBACK |
-| Store (SW, SB, etc.) | 5 | FETCH → FETCH2 → DECODE → EXECUTE → MEMORY |
-| Branch (BEQ, BNE, etc.) | 4 | FETCH → FETCH2 → DECODE → EXECUTE |
-| JAL | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
-| JALR | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
-| LUI, AUIPC | 5 | FETCH → FETCH2 → DECODE → EXECUTE → WRITEBACK |
+| R-type (ADD, SUB, etc.) | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → WRITEBACK |
+| I-type ALU (ADDI, etc.) | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → WRITEBACK |
+| Load (LW, LB, etc.) | 7 | FETCH → FETCH_WAIT → DECODE → EXECUTE → MEMORY → MEMORY_WAIT → WRITEBACK |
+| Store (SW, SB, etc.) | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → MEMORY |
+| Branch (BEQ, BNE, etc.) | 4 | FETCH → FETCH_WAIT → DECODE → EXECUTE |
+| JAL | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → WRITEBACK |
+| JALR | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → WRITEBACK |
+| LUI, AUIPC | 5 | FETCH → FETCH_WAIT → DECODE → EXECUTE → WRITEBACK |
 
 ### Architecture Components
+The CPU is based on a Harvard-style architecture with separate instruction and data memories. The image below illustrates the datapath with no control unit and latch registers for clarity:
+![Datapath Diagram](assets/rv32i_dp.jpg)
 
 - **Program Counter (PC)**: 32-bit program counter with write-enable gating
-- **Instruction Memory**: 4KB synchronous ROM with hex file loading
+- **Instruction Memory (ROM)**: 4KB synchronous ROM with hex file loading
 - **Instruction Register (IR)**: Latches instruction for multi-cycle decoding
 - **Register File**: 32 general-purpose registers (x0-x31), x0 hardwired to zero
 - **ALU**: 10 operations with zero, negative, and carry flag generation
-- **Data Memory**: 4KB synchronous RAM with byte/halfword/word access
+- **Data Memory (RAM)**: 4KB synchronous RAM with byte/halfword/word access
 - **Memory Data Register (MDR)**: Latches data from synchronous RAM
 - **Controller FSM**: Multi-state controller generating all control signals
 - **Immediate Extender**: Supports all 6 RISC-V immediate formats (I, S, B, U, J, R)
-- **Datapath Registers**: `reg32b` modules for latching values between pipeline stages (regA, regB, ALUOut, ImmOut, OldPC)
+- **Datapath Registers**: `reg32b` modules for latching values between states
 
 ### Key Design Features
 
-- **Synchronous memories**: Compatible with FPGA block RAM and realistic ASIC memories
+- **Synchronous memories**: Compatible with FPGA block RAM and realistic ASIC memories. They support a variable latency parameter for testing different memory speeds (default is 1 cycle).
 - **Clean datapath**: All sequential elements use dedicated `reg32b` modules with write-enable control
 - **Flag-based branching**: Uses zero, negative, and carry flags for efficient branch comparison
 - **Flexible memory access**: Supports signed/unsigned byte, halfword, and word operations
@@ -79,7 +81,7 @@ The processor uses a FSM controller with the following states:
 - GCC / g++ - to compile the generated model and testbench
 - GTKWave (optional) - waveform viewer
 
-Note: I updated the repository to use Verilator instead of Icarus Verilog for simulation.
+*Note: I updated the repository to use Verilator instead of Icarus Verilog for simulation.*
 
 ### Quick Start (Verilator)
 
@@ -98,12 +100,10 @@ make clean
 
 ## Testing
 
-The current testbench (`sim/soc_tb.v`) validates basic functionality:
-- Arithmetic and logical operations
-- Memory load/store operations
-- Data memory persistence
+The `sim/instruction_tests.hpp` file contains a suite of unit tests for each instruction. Each test sets up the initial state, runs a sequence of instructions, and checks the final register/memory state against expected values. The tests cover all 37 implemented instructions.  
+At the end of this test suite, I also added a Fibonacci test that computes the first 12 Fibonacci numbers and stores them in memory, demonstrating a more complex program execution.
 
-*Note: In the future, more comprehensive testbenches will be added to cover all instructions and edge cases.*
+*Note: The instruction encodings in the tests were generated using an online RISC-V assembler (https://riscvasm.lucasteske.dev/) using the ASM instructions presented in each test function.*
 
 ## References
 

@@ -5,13 +5,17 @@ module cpu_multicycle (
     // ROM interface
     output wire [31:0] o_rom_addr,
     input wire [31:0] i_rom_data,
+    output wire o_rom_req,
+    input wire i_rom_ready,
 
     // RAM interface
     output wire [31:0] o_ram_addr,
     output wire [31:0] o_ram_wdata,
     input wire [31:0] i_ram_rdata,
     output wire o_ram_we,
-    output wire [2:0] o_ram_mode
+    output wire [2:0] o_ram_mode,
+    output wire o_ram_req,
+    input wire i_ram_ready
 );
 
     // Internal signals
@@ -238,7 +242,13 @@ module cpu_multicycle (
         .o_pc_we(w_pc_we),
 
         .o_decode_we(w_decode_we),
-        .o_execute_we(w_execute_we)
+        .o_execute_we(w_execute_we),
+
+        .o_rom_req(o_rom_req),
+        .i_rom_ready(i_rom_ready),
+
+        .o_ram_req(o_ram_req),
+        .i_ram_ready(i_ram_ready)
     );
 
     // outputs to memory

@@ -1,7 +1,7 @@
 `include "defines.vh"
 
 module dmem_sync #(
-    parameter LATENCY = 1  // 1 = default (ready next cycle)
+    parameter LATENCY = 1 // 1 = default (ready next cycle)
 ) (
     input wire clk,
     input wire rst,

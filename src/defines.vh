@@ -27,3 +27,11 @@
 `define DM_SB 3'b101
 `define DM_SH 3'b110
 `define DM_SW 3'b111
+
+// Memory map
+// RAM: 4KB 32-bit words: 0x0000_0000 - 0x0000_0FFF
+`define RAM_BASE 32'h0000_0000
+`define RAM_TOP  32'h0000_0FFF
+// UART: 0x1000_0000 - 0x1000_00FF
+`define UART_BASE 32'h1000_0000
+`define UART_TOP  32'h1000_00FF

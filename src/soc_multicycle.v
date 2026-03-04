@@ -1,24 +1,36 @@
 module soc_multicycle #(
     parameter IMEM_LATENCY = 1,  // cycles before imem asserts ready
-    parameter DMEM_LATENCY = 1   // cycles before dmem asserts ready
+    parameter DMEM_LATENCY = 1,   // cycles before dmem asserts ready
+    parameter UART_LATENCY = 1   // cycles before uart asserts ready
 ) (
     input wire clk,
     input wire rst
 );
 
     // Internal signals
+    // CPU <-> ROM
     wire [31:0] rom_addr;
     wire [31:0] rom_data;
     wire rom_req;
     wire rom_ready;
 
-    wire [31:0] ram_addr;
-    wire [31:0] ram_wdata;
-    wire [31:0] ram_rdata;
-    wire ram_we;
-    wire [2:0] ram_mode;
-    wire ram_req;
-    wire ram_ready;
+    // CPU <-> BC
+    wire [31:0] cpu_addr;
+    wire [31:0] cpu_wdata;
+    wire [31:0] cpu_rdata;
+    wire cpu_we;
+    wire [2:0] cpu_mode;
+    wire cpu_req;
+    wire cpu_ready;
+
+    // BC <-> RAM / UART
+    wire [31:0] mem_addr;
+    wire [31:0] mem_wdata;
+    wire [31:0] mem_rdata [1:0]; // 0: dmem data, 1: uart data
+    wire mem_we;
+    wire [2:0] mem_mode;
+    wire [1:0] mem_req; // 01: dmem, 10: uart
+    wire [1:0] mem_ready; // 01: dmem, 10: uart
 
 
     // CPU instantiation
@@ -27,15 +39,15 @@ module soc_multicycle #(
         .rst(rst),
         .o_rom_addr(rom_addr),
         .i_rom_data(rom_data),
-        .o_ram_addr(ram_addr),
-        .o_ram_wdata(ram_wdata),
-        .i_ram_rdata(ram_rdata),
-        .o_ram_we(ram_we),
-        .o_ram_mode(ram_mode),
+        .o_ram_addr(cpu_addr),
+        .o_ram_wdata(cpu_wdata),
+        .i_ram_rdata(cpu_rdata),
+        .o_ram_we(cpu_we),
+        .o_ram_mode(cpu_mode),
         .o_rom_req(rom_req),
         .i_rom_ready(rom_ready),
-        .o_ram_req(ram_req),
-        .i_ram_ready(ram_ready)
+        .o_ram_req(cpu_req),
+        .i_ram_ready(cpu_ready)
     );
 
     // ROM instantiation
@@ -52,13 +64,48 @@ module soc_multicycle #(
     dmem_sync #(.LATENCY(DMEM_LATENCY)) ram_inst (
         .clk(clk),
         .rst(rst),
-        .address(ram_addr),
-        .write_data(ram_wdata),
-        .read_data(ram_rdata),
-        .we(ram_we),
-        .mode(ram_mode),
-        .req(ram_req),
-        .ready(ram_ready)
+        .address(mem_addr),
+        .write_data(mem_wdata),
+        .read_data(mem_rdata[0]),
+        .we(mem_we),
+        .mode(mem_mode),
+        .req(mem_req[0]), 
+        .ready(mem_ready[0])
     );
+
+    // UART instantiation
+    uart #(.LATENCY(UART_LATENCY)) uart_inst (
+        .clk(clk),
+        .rst(rst),
+        .address(mem_addr),
+        .write_data(mem_wdata),
+        .read_data(mem_rdata[1]),
+        .we(mem_we),
+        .mode(mem_mode),
+        .req(mem_req[1]), 
+        .ready(mem_ready[1])
+    );
+
+    // Bus controller instantiation
+    bus_controller bus_ctrl_inst (
+        .clk(clk),
+        .rst(rst),
+        // CPU Interface
+        .cpu_address(cpu_addr),
+        .cpu_write_data(cpu_wdata),
+        .cpu_read_data(cpu_rdata),
+        .cpu_we(cpu_we),
+        .cpu_mode(cpu_mode),
+        .cpu_req(cpu_req),
+        .cpu_ready(cpu_ready),
+        // Memory Interface
+        .mem_address(mem_addr),
+        .mem_write_data(mem_wdata),
+        .mem_read_data(mem_rdata),
+        .mem_we(mem_we),
+        .mem_mode(mem_mode),
+        .mem_req(mem_req),
+        .mem_ready(mem_ready)
+    ); 
 
 endmodule

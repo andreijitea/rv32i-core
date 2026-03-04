@@ -17,7 +17,9 @@ SRC_FILES = $(SRC_DIR)/soc_multicycle.v \
 			$(SRC_DIR)/controller_multicycle.v \
 			$(SRC_DIR)/adder.v \
 			$(SRC_DIR)/mux2.v \
-			$(SRC_DIR)/mux4.v
+			$(SRC_DIR)/mux4.v \
+			$(SRC_DIR)/bus_controller.v \
+			$(SRC_DIR)/uart.v
 
 TB_CPP = $(SIM_DIR)/soc_tb.cpp
 TB_HEADERS = $(SIM_DIR)/instruction_tests.hpp

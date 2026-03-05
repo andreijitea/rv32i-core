@@ -12,6 +12,14 @@
 # define ROM_SIZE 1024
 # define RAM_SIZE 1024
 
+// Memory map
+// RAM: 4KB 32-bit words: 0x0000_0000 - 0x0000_0FFF
+#define RAM_BASE 0x00000000
+#define RAM_TOP  0x00000FFF
+// UART: 0x1000_0000 - 0x1000_00FF
+#define UART_BASE 0x10000000
+#define UART_TOP  0x100000FF
+
 struct TestResult {
     std::string test_name;
     bool passed;
@@ -23,6 +31,7 @@ public:
     Vsoc_multicycle* dut;
     VerilatedVcdC* tfp = nullptr;
     vluint64_t sim_time = 0;
+    bool vcd_enabled = false; // set to true to record waveforms for a specific test
     std::vector<TestResult> results;
 
     // Helper function to convert uint32_t to hexadecimal string
@@ -53,7 +62,7 @@ public:
     }
 
     void dump() {
-        if (tfp) tfp->dump(sim_time);
+        if (tfp && vcd_enabled) tfp->dump(sim_time);
         sim_time++;
     }
 
@@ -750,4 +759,23 @@ void test_fibo(InstructionTest& tester) {
           { {0, 0x00000059}, {1, 0x00000090} },
           1000
     );
+}
+
+void test_uart_tx(InstructionTest& tester) {
+    // ASM:
+    //   addi x1, x0, 0x41   # x1 = ASCII 'A'
+    //   lui  x2, 0x1      # x2 = 0x1000 (UART base address)
+    //   sb   x1, 0(x2)      # UART_TX = 0x1000, write 'A' to UART
+
+    tester.vcd_enabled = true;
+    tester.run_test(
+        "UART TX: write 'A' to UART",
+        { 0x04100093,
+          0x10000137,
+          0x00110023 },
+          { {1, 0x41}, {2, 0x10000000} },
+          {},
+          200
+    );
+    tester.vcd_enabled = false;
 }

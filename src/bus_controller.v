@@ -32,6 +32,10 @@ module bus_controller (
     assign is_dmem = (cpu_address <= `RAM_TOP);
     assign is_uart = (cpu_address >= `UART_BASE) && (cpu_address <= `UART_TOP);
 
+    wire [31:0] decoded_address;
+    assign decoded_address = is_dmem ? (cpu_address - `RAM_BASE) : 
+                             (is_uart ? (cpu_address - `UART_BASE) : 32'b0);
+
 
     always @(posedge clk) begin
         if (rst) begin
@@ -41,9 +45,9 @@ module bus_controller (
         end else begin
             case (state)
                 IDLE: 
-                    if (cpu_req) begin
+                    if (cpu_req && !cpu_ready) begin
                         // Forward CPU request to memory
-                        mem_address <= cpu_address;
+                        mem_address <= decoded_address;
                         mem_write_data <= cpu_write_data;
                         mem_we <= cpu_we;
                         mem_mode <= cpu_mode;

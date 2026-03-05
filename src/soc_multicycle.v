@@ -32,6 +32,9 @@ module soc_multicycle #(
     wire [1:0] mem_req; // 01: dmem, 10: uart
     wire [1:0] mem_ready; // 01: dmem, 10: uart
 
+    // UART Tx/Rx lines
+    wire uart_tx;
+    wire uart_rx;
 
     // CPU instantiation
     cpu_multicycle cpu_inst (
@@ -83,7 +86,9 @@ module soc_multicycle #(
         .we(mem_we),
         .mode(mem_mode),
         .req(mem_req[1]), 
-        .ready(mem_ready[1])
+        .ready(mem_ready[1]),
+        .tx(uart_tx),
+        .rx(uart_rx)
     );
 
     // Bus controller instantiation

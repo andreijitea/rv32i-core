@@ -62,6 +62,8 @@ The CPU is based on a Harvard-style architecture with separate instruction and d
 - **Controller FSM**: Multi-state controller generating all control signals
 - **Immediate Extender**: Supports all 6 RISC-V immediate formats (I, S, B, U, J, R)
 - **Datapath Registers**: `reg32b` modules for latching values between states
+- **Bus Controller**: Simple memory-mapped bus routing CPU requests to either data memory or peripherals
+- **UART Peripheral**: 8N1 serial communication block (TX implemented, RX pending)
 
 ### Key Design Features
 
@@ -71,7 +73,12 @@ The CPU is based on a Harvard-style architecture with separate instruction and d
 - **Flexible memory access**: Supports signed/unsigned byte, halfword, and word operations
 - **Modular design**: Separated datapath and control logic
 - **PC latching**: Old PC is saved during DECODE for correct JAL/JALR return address calculation
+- **Memory-Mapped I/O (MMIO)**: CPU interfaces with peripherals like UART through a dedicated bus controller
 
+### Roadmap / TODO
+- [x] Integrate memory-mapped Bus Controller
+- [x] UART Transmitter (TX) logic and simulation tests
+- [ ] UART Receiver (RX) logic
 
 ## Building and Running
 

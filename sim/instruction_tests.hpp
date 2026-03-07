@@ -764,10 +764,10 @@ void test_fibo(InstructionTest& tester) {
 void test_uart_tx(InstructionTest& tester) {
     // ASM:
     //   addi x1, x0, 0x41   # x1 = ASCII 'A'
-    //   lui  x2, 0x1      # x2 = 0x1000 (UART base address)
+    //   lui  x2, 0x10000      # x2 = 0x1000_0000 (UART base address)
     //   sb   x1, 0(x2)      # UART_TX = 0x1000, write 'A' to UART
 
-    tester.vcd_enabled = true;
+    // tester.vcd_enabled = true;
     tester.run_test(
         "UART TX: write 'A' to UART",
         { 0x04100093,
@@ -777,5 +777,49 @@ void test_uart_tx(InstructionTest& tester) {
           {},
           200
     );
-    tester.vcd_enabled = false;
+    // tester.vcd_enabled = false;
+}
+
+void test_uart_tx2(InstructionTest& tester) {
+    // ASM:
+    // addi x1, x0, 0x41    # x1 = ASCII 'A'
+    // lui  x2, 0x10000    # x2 = 0x1000_0000 (UART base address)
+    // addi x3, x2, 0x8    # x3 = 0x1000_0008 (UART status reg)
+
+    // addi x10, x0, 3
+    // addi x5, x0, 0x1
+    // addi x11, x0, 0x1
+
+    // loop:
+    // wait_uart:    # wait loop for UART Tx
+    // lb x4, 0(x3)
+    // and x4, x4, x5
+    // beq x4, x0, wait_uart
+
+    // sb   x1, 0(x2)      # UART_TX = 0x1000, write 'A' -> 'C' to UART
+    // addi x1, x1, 0x1
+    // sub x10, x10, x11
+    // bne x10, x0, loop
+
+    tester.vcd_enabled = true;
+    tester.run_test(
+        "UART TX loop: write 'A', 'B', 'C' to UART with status check (Check on VCD)",
+        { 0x04100093,
+        0x10000137,
+        0x00810193,
+        0x00300513,
+        0x00100293,
+        0x00100593,
+        0x00018203,
+        0x00527233,
+        0xfe020ce3,
+        0x00110023,
+        0x00108093,
+        0x40b50533,
+        0xfe0514e3 },
+        { {1, 0x44}, {2, 0x10000000}, {3, 0x10000008}, {5, 0x1}, {10, 0x0}, {11, 0x1} },
+        {},
+        1000
+    );
+     tester.vcd_enabled = false;
 }

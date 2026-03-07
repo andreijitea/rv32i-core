@@ -23,52 +23,80 @@ module bus_controller (
     input wire [1:0] mem_ready // 01: dmem ready, 10: uart ready
 );
 
-    localparam IDLE = 2'b00;
-    localparam WAIT = 2'b01;
+    localparam IDLE = 1'b0, WAIT = 1'b1;
+    localparam RAM_REQ = 2'b01, UART_REQ = 2'b10;
 
-    reg [1:0] state;
+    reg state;
+    reg [31:0] decoded_address;
+    reg [1:0] current_peripheral_select;
 
-    wire is_dmem, is_uart;
-    assign is_dmem = (cpu_address <= `RAM_TOP);
-    assign is_uart = (cpu_address >= `UART_BASE) && (cpu_address <= `UART_TOP);
-
-    wire [31:0] decoded_address;
-    assign decoded_address = is_dmem ? (cpu_address - `RAM_BASE) : 
-                             (is_uart ? (cpu_address - `UART_BASE) : 32'b0);
-
+    always @(*) begin
+        if (cpu_address <= `RAM_TOP) begin
+            // DMEM address range
+            decoded_address = cpu_address - `RAM_BASE;
+            current_peripheral_select = RAM_REQ;
+        end else if (cpu_address >= `UART_BASE && cpu_address <= `UART_TOP) begin
+            // UART address range
+            decoded_address = cpu_address - `UART_BASE;
+            current_peripheral_select = UART_REQ;
+        end else begin
+            // Default to DMEM for unmapped addresses
+            decoded_address = 32'b0;
+            current_peripheral_select = RAM_REQ;
+        end
+    end
 
     always @(posedge clk) begin
         if (rst) begin
             state <= IDLE;
+
+            cpu_read_data <= 32'b0;
             cpu_ready <= 1'b0;
+
+            mem_address <= 32'b0;
+            mem_write_data <= 32'b0;
+            mem_we <= 1'b0;
+            mem_mode <= 3'b0;
             mem_req <= 2'b00;
         end else begin
             case (state)
-                IDLE: 
-                    if (cpu_req && !cpu_ready) begin
+                IDLE: begin
+                    cpu_ready <= 1'b0;
+
+                    if (cpu_req) begin
+                        state <= WAIT;
+
                         // Forward CPU request to memory
                         mem_address <= decoded_address;
                         mem_write_data <= cpu_write_data;
                         mem_we <= cpu_we;
                         mem_mode <= cpu_mode;
-                        mem_req <= is_dmem ? 2'b01 : 
-                                    (is_uart ? 2'b10 : 2'b00);
-                        state <= WAIT;
-                    end else begin
-                        cpu_ready <= 1'b0;
-                    end
-                WAIT:
-                    if ((mem_req[0] && mem_ready[0]) || (mem_req[1] && mem_ready[1])) begin
-                        // Capture memory response
-                        cpu_read_data <= is_dmem ? mem_read_data[0] : 
-                                         (is_uart ? mem_read_data[1] : 32'b0);
-                        cpu_ready <= 1'b1;
-                        mem_req <= 2'b00;
+                        mem_req <= current_peripheral_select;
 
-                        state <= IDLE;
-                    end else begin
-                        cpu_ready <= 1'b0;
+                        if (cpu_we) begin
+                            // For writes, immediately set ready to allow next instruction
+                            cpu_ready <= 1'b1;
+                        end
                     end
+                end
+                WAIT: begin
+                    cpu_ready <= 1'b0;
+
+                    if ((mem_req[0] && mem_ready[0]) || (mem_req[1] && mem_ready[1])) begin
+                        state <= IDLE;
+                        // Capture memory response
+                        cpu_read_data <= mem_req[0] ? mem_read_data[0] : 
+                                         (mem_req[1] ? mem_read_data[1] : 32'b0);
+                        
+                        if (!mem_we) begin
+                            // For reads, set ready after data is captured
+                            cpu_ready <= 1'b1;
+                        end
+                        
+                        mem_req <= 2'b0;
+                        mem_we <= 1'b0;
+                    end
+                end
                 default: state <= IDLE;
             endcase
         end

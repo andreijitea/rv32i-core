@@ -62,7 +62,8 @@ int main(int argc, char** argv) {
     test_bgeu(tester);
 
     test_fibo(tester);
-    test_uart_tx(tester);
+    // test_uart_tx(tester);
+    test_uart_tx2(tester);
 
     tester.print_results();
 

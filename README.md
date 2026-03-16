@@ -63,7 +63,7 @@ The CPU is based on a Harvard-style architecture with separate instruction and d
 - **Immediate Extender**: Supports all 6 RISC-V immediate formats (I, S, B, U, J, R)
 - **Datapath Registers**: `reg32b` modules for latching values between states
 - **Bus Controller**: Simple memory-mapped bus routing CPU requests to either data memory or peripherals
-- **UART Peripheral**: 8N1 serial communication block (TX implemented, RX pending)
+- **UART Peripheral**: 8N1 full duplex UART with separate status and baud rate registers
 
 ### Key Design Features
 
@@ -77,8 +77,11 @@ The CPU is based on a Harvard-style architecture with separate instruction and d
 
 ### Roadmap / TODO
 - [x] Integrate memory-mapped Bus Controller
-- [x] UART Transmitter (TX) logic and simulation tests
-- [ ] UART Receiver (RX) logic
+- [x] UART Transmitter (TX) logic
+- [x] UART Receiver (RX) logic
+- [x] UART loopback test
+- [ ] Implement additional peripherals
+- [ ] Add support for interrupts
 
 ## Building and Running
 

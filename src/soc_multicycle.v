@@ -4,7 +4,10 @@ module soc_multicycle #(
     parameter UART_LATENCY = 1   // cycles before uart asserts ready
 ) (
     input wire clk,
-    input wire rst
+    input wire rst,
+
+    output wire uart_tx,
+    input wire uart_rx
 );
 
     // Internal signals
@@ -31,10 +34,6 @@ module soc_multicycle #(
     wire [2:0] mem_mode;
     wire [1:0] mem_req; // 01: dmem, 10: uart
     wire [1:0] mem_ready; // 01: dmem, 10: uart
-
-    // UART Tx/Rx lines
-    wire uart_tx;
-    wire uart_rx;
 
     // CPU instantiation
     cpu_multicycle cpu_inst (

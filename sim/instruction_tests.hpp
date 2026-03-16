@@ -69,19 +69,25 @@ public:
     // Run the simulation for a specified number of cycles
     void run_simulation(int cycles = CYCLE_LIMIT) {
         // Reset the DUT for 1 cycle
+        dut->clk = 0;
         dut->rst = 1;
+        dut->eval(); dump();
+        
         dut->clk = 1;
         dut->eval(); dump();
 
+        dut->rst = 0;
         dut->clk = 0;
         dut->eval(); dump();
 
-        dut->rst = 0;
         dut->clk = 1;
         dut->eval(); dump();
 
         // Main simulation loop
         for (int i = 0; i < cycles; i++) {
+            // Loopback for UART
+            dut->uart_rx = dut->uart_tx;
+
             dut->clk = 0;
             dut->eval(); dump();
             dut->clk = 1;
@@ -801,7 +807,7 @@ void test_uart_tx2(InstructionTest& tester) {
     // sub x10, x10, x11
     // bne x10, x0, loop
 
-    tester.vcd_enabled = true;
+    // tester.vcd_enabled = true;
     tester.run_test(
         "UART TX loop: write 'A', 'B', 'C' to UART with status check (Check on VCD)",
         { 0x04100093,
@@ -821,5 +827,45 @@ void test_uart_tx2(InstructionTest& tester) {
         {},
         1000
     );
-     tester.vcd_enabled = false;
+    //  tester.vcd_enabled = false;
+}
+
+void test_uart_loopback(InstructionTest& tester) {
+    // ASM:
+    // addi x1, x0, 0x5A    # x1 = ASCII 'Z'
+    // lui x2, 0x10000     # x2 = 0x1000_0000 (UART base)
+    // addi x3, x2, 0x8     # x3 = 0x1000_0008 (UART status reg)
+    // addi x4, x0, 0x2     # x4 = 0x2 (Rx Ready Bit mask)
+
+    // addi x10, x0, 20    # Prepare baud rate reg
+    // sb x10, 12(x2)    # Write to UART_BAUD (0x1000_000C)
+
+    // sb x1, 0(x2)       # Write 'Z' to UART_TX (0x1000_0000)
+
+    // wait_rx:    
+    // lb x5, 0(x3)       # Load status_reg
+    // and x5, x5, x4      # Check Rx Ready bit (bit 1)
+    // beq x5, x0, wait_rx # Loop until bit 1 is high
+
+    // lb x6, 4(x2)       # Read from UART_RX (0x1000_0004) into x6
+
+    tester.vcd_enabled = true;
+    tester.run_test(
+        "UART Loopback: write 'Z' to UART and read it back",
+        { 0x05A00093,
+          0x10000137,
+          0x00810193,
+          0x00200213,
+          0x01400513,
+          0x00a10623,
+          0x00110023,
+          0x00018283,
+          0x0042f2b3,
+          0xfe028ce3,
+          0x00410303 },
+          { {1, 0x5A}, {2, 0x10000000}, {3, 0x10000008}, {4, 0x2}, {5, 0x2}, {6, 0x5A} },
+          {},
+          1000
+    );
+    tester.vcd_enabled = false;
 }

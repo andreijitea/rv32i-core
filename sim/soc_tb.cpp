@@ -63,7 +63,9 @@ int main(int argc, char** argv) {
 
     test_fibo(tester);
     // test_uart_tx(tester);
-    test_uart_tx2(tester);
+    // test_uart_tx2(tester);
+
+    test_uart_loopback(tester);
 
     tester.print_results();
 

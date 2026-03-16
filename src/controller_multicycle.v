@@ -386,7 +386,7 @@ module controller_multicycle (
             end
 
             MEMORY_WAIT: begin
-                o_ram_req = 1'b1; // Keep request asserted until ready
+                // o_ram_req = 1'b1; // Keep request asserted until ready
                 // Re-assert ram_mode
                 case (i_funct3)
                     3'b000: o_ram_mode = `DM_LB;
